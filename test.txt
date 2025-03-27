@@ -1,0 +1,5 @@
+{
+    "message": "Bucket created successfully",
+    "access_key": "HgivHfq3uoKVmrJdBwVK",
+    "secret_key": "v7eGNUFesFQGFkmG3BYBz19SJVW1dLPqYqKlu0Jl"
+}
