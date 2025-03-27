@@ -129,7 +129,10 @@ class StorageController extends Controller
 
         if ($object->visibility === 'public') {
             // dd($object->path);
-            return response()->json(['url' => url($object->path)]);
+            return response()->json(['url' => url("", [
+                'bucket' => $bucket->name,
+                'filename' => $filename
+            ])]);
         }
 
         $expTime = max(min($request->input('expTime', 10), 60), 1); // Maks 60 menit, Min 1 menit
