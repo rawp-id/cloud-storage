@@ -1,0 +1,443 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "Object Cloud storage API",
+        "description": "Object Cloud storage API Documentation",
+        "version": "1.0.0"
+    },
+    "paths": {
+        "/api/buckets": {
+            "get": {
+                "tags": [
+                    "Bucket"
+                ],
+                "summary": "Get list of all buckets",
+                "description": "Retrieve a list of all created buckets.",
+                "operationId": "db61e2c7cf055efeb92a3c6da6415794",
+                "responses": {
+                    "200": {
+                        "description": "Successful operation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "properties": {
+                                            "id": {
+                                                "type": "integer",
+                                                "example": 1
+                                            },
+                                            "name": {
+                                                "type": "string",
+                                                "example": "my-bucket"
+                                            },
+                                            "storage_path": {
+                                                "type": "string",
+                                                "example": "storage/my-bucket"
+                                            },
+                                            "access_key": {
+                                                "type": "string",
+                                                "example": "abcdef1234567890"
+                                            },
+                                            "secret_key": {
+                                                "type": "string",
+                                                "example": "abcdef1234567890abcdef1234567890abcdef12"
+                                            }
+                                        },
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "tags": [
+                    "Bucket"
+                ],
+                "summary": "Create a new bucket",
+                "description": "Creates a new bucket with a unique name and generates access keys.",
+                "operationId": "f70cbfdf9fa4396743ccae91124a22aa",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "name"
+                                ],
+                                "properties": {
+                                    "name": {
+                                        "type": "string",
+                                        "example": "my-bucket"
+                                    },
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": [
+                                            "public",
+                                            "private"
+                                        ],
+                                        "example": "public"
+                                    },
+                                    "versioning": {
+                                        "type": "boolean",
+                                        "example": false
+                                    },
+                                    "object_lock": {
+                                        "type": "boolean",
+                                        "example": false
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Bucket created successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Bucket created successfully"
+                                        },
+                                        "access_key": {
+                                            "type": "string",
+                                            "example": "abcdef1234567890"
+                                        },
+                                        "secret_key": {
+                                            "type": "string",
+                                            "example": "abcdef1234567890abcdef1234567890abcdef12"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    }
+                }
+            }
+        },
+        "/api/upload": {
+            "post": {
+                "tags": [
+                    "Storage"
+                ],
+                "summary": "Upload a file",
+                "description": "Uploads a file to a specified bucket with optional versioning and object lock.",
+                "operationId": "9a822848e1c92eaf8b3f1c4913dffaa9",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "file"
+                                ],
+                                "properties": {
+                                    "file": {
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": [
+                                            "public",
+                                            "private"
+                                        ],
+                                        "example": "private"
+                                    },
+                                    "locked_until": {
+                                        "type": "integer",
+                                        "example": 30
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "File uploaded successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "File uploaded"
+                                        },
+                                        "object": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "File is locked and cannot be overwritten"
+                    },
+                    "500": {
+                        "description": "Server error"
+                    }
+                }
+            }
+        },
+        "/api/signed-url/{filename}": {
+            "get": {
+                "tags": [
+                    "Storage"
+                ],
+                "summary": "Generate a signed URL",
+                "description": "Generates a signed URL for accessing a file, with an expiration time.",
+                "operationId": "a9238e34026bd50d9f48c67a7c835e00",
+                "parameters": [
+                    {
+                        "name": "filename",
+                        "in": "path",
+                        "description": "Filename to generate signed URL for",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Signed URL generated",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "signed_url": {
+                                            "type": "string"
+                                        },
+                                        "expires_in": {
+                                            "type": "string",
+                                            "example": "10 minutes"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "File not found"
+                    }
+                }
+            }
+        },
+        "/api/visibility/{filename}": {
+            "post": {
+                "tags": [
+                    "Storage"
+                ],
+                "summary": "Set file visibility",
+                "description": "Updates the visibility of a file to public or private.",
+                "operationId": "62e1f7f10c532c4e1a392617e81ef55f",
+                "parameters": [
+                    {
+                        "name": "filename",
+                        "in": "path",
+                        "description": "Filename to update visibility",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "visibility": {
+                                        "type": "string",
+                                        "enum": [
+                                            "public",
+                                            "private"
+                                        ],
+                                        "example": "public"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Visibility updated successfully"
+                    },
+                    "404": {
+                        "description": "File not found"
+                    }
+                }
+            }
+        },
+        "/api/download/{filename}": {
+            "get": {
+                "tags": [
+                    "Storage"
+                ],
+                "summary": "Download a file",
+                "description": "Allows downloading of a stored file.",
+                "operationId": "4135a8c53db36463935ad5fb3b2a1274",
+                "parameters": [
+                    {
+                        "name": "filename",
+                        "in": "path",
+                        "description": "Filename to download",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File downloaded successfully"
+                    },
+                    "404": {
+                        "description": "File not found"
+                    }
+                }
+            }
+        },
+        "/api/delete/{filename}": {
+            "delete": {
+                "tags": [
+                    "Storage"
+                ],
+                "summary": "Delete a file",
+                "description": "Deletes a file permanently.",
+                "operationId": "a1812383f1b97714b25ac94feaded2f0",
+                "parameters": [
+                    {
+                        "name": "filename",
+                        "in": "path",
+                        "description": "Filename to delete",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "File deleted successfully"
+                    },
+                    "404": {
+                        "description": "File not found"
+                    }
+                }
+            }
+        },
+        "/api/storage/soft-delete/{filename}": {
+            "post": {
+                "tags": [
+                    "Storage"
+                ],
+                "summary": "Soft delete a file",
+                "description": "Marks a file as deleted without permanently removing it. If versioning is enabled, a delete marker is used; otherwise, the file is removed.",
+                "operationId": "ba0d8ec3c9d8afaa71e9827e62014953",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "bucket",
+                                    "filename"
+                                ],
+                                "properties": {
+                                    "bucket": {
+                                        "type": "string",
+                                        "example": "my-bucket"
+                                    },
+                                    "filename": {
+                                        "type": "string",
+                                        "example": "document.pdf"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "File deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "message": {
+                                            "type": "string",
+                                            "example": "File deleted"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "File not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "File not found"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "File is locked and cannot be deleted",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "error": {
+                                            "type": "string",
+                                            "example": "File is locked and cannot be deleted"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Bucket",
+            "description": "Bucket"
+        },
+        {
+            "name": "Storage",
+            "description": "Storage"
+        }
+    ]
+}

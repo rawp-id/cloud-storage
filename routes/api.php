@@ -13,13 +13,12 @@ Route::get('/user', function (Request $request) {
 Route::post('/bucket', [BucketController::class, 'createBucket']);
 Route::get('/buckets', [BucketController::class, 'listBuckets']);
 
-Route::get('/files', [StorageController::class, 'getAll']);
-
 // Manajemen File (dengan Middleware Keamanan)
 Route::middleware('apiauth')->group(function () {
     Route::post('/upload', [StorageController::class, 'uploadFile']);
     Route::get('/download/{filename}', [StorageController::class, 'downloadFile']);
-    Route::delete('/delete/{filename}', [StorageController::class, 'deleteFile']);
+    Route::delete('/delete/{filename}', [StorageController::class, 'hardDeleteFile']);
     Route::get('/signed-url/{filename}', [StorageController::class, 'generateSignedUrl']);
     Route::patch('/visibility/{filename}', [StorageController::class, 'setVisibility']);
+    Route::post('/storage/soft-delete/{filename}', [StorageController::class, 'softDeleteFile']);
 });

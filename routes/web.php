@@ -7,5 +7,4 @@ Route::get('/', function () {
     return view('welcome');
 });
 
-// Route::get('/files', [StorageController::class, 'getAll']);
-Route::get('/{bucket}/{filename}', [StorageController::class, 'showFile']);
+Route::get('/storage/{bucket}/{filename}', [StorageController::class, 'showFile']);

@@ -11,13 +11,88 @@ use Illuminate\Support\Facades\Storage;
 
 class StorageController extends Controller
 {
-    // public function getAll()
-    // {
-    //     $file = Storage::disk('local')->get('storage/mybucket/zakat.png');
-    //     // return response()->file($file);
-    //     return response($file)->header('Content-Type', 'image');
-    // }
+    public function accessSignedUrl(Request $request, $bucketId, $filename)
+    {
+        $expiresAt = $request->query('expires');
+        $signature = $request->query('signature');
 
+        $object = ObjectStorage::where('bucket_id', $bucketId)->where('key', $filename)->first();
+
+        if (!$expiresAt || !$signature) {
+            return response()->json(['error' => 'Invalid signed URL'], 400);
+        }
+
+        if (Carbon::now()->timestamp > $expiresAt) {
+            return response()->json(['error' => 'Signed URL expired'], 403);
+        }
+
+        $secretKey = env('SIGNED_URL_SECRET', 'default_secret_key');
+        $expectedSignature = hash_hmac('sha256', "{$filename}:{$expiresAt}", $secretKey);
+
+        if (!hash_equals($expectedSignature, $signature)) {
+            return response()->json(['error' => 'Invalid signature'], 403);
+        }
+
+        if (!$object) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        return response(Storage::get($object->path))->header('Content-Type', 'file');
+    }
+
+    public function showFile(Request $request, $bucket, $filename)
+    {
+        $bucket = Bucket::where('name', $bucket)->first();
+        if (!$bucket) {
+            return response()->json(['error' => 'Bucket not found'], 404);
+        }
+        // dd($bucket);
+        $path = "{$bucket->storage_path}/$filename";
+        $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->firstOrFail();
+
+        if (!Storage::exists($path)) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
+
+        if ($object->visibility == 'private') {
+            // return response()->json(['error' => 'File not found'], 404);
+            return $this->accessSignedUrl($request, $bucket->id, $filename);
+        }
+
+        return response(Storage::get($path))->header('Content-Type', 'file');
+    }
+
+    /**
+     * @OA\Post(
+     *     path="/api/upload",
+     *     tags={"Storage"},
+     *     summary="Upload a file",
+     *     description="Uploads a file to a specified bucket with optional versioning and object lock.",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 required={"file"},
+     *                 @OA\Property(property="file", type="string", format="binary"),
+     *                 @OA\Property(property="visibility", type="string", enum={"public", "private"}, example="private"),
+     *                 @OA\Property(property="locked_until", type="integer", example=30)
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="File uploaded successfully",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="File uploaded"),
+     *             @OA\Property(property="object", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=403, description="File is locked and cannot be overwritten"),
+     *     @OA\Response(response=500, description="Server error")
+     * )
+     */
     public function uploadFile(Request $request)
     {
         try {
@@ -75,51 +150,32 @@ class StorageController extends Controller
         }
     }
 
-    // Upload File ke Bucket
-    // public function uploadFile(Request $request)
-    // {
-    //     $request->validate([
-    //         'file' => 'required|file',
-    //         'visibility' => 'in:public,private'
-    //     ]);
-
-    //     $bucket = $request->bucket;
-    //     $file = $request->file('file');
-    //     $filename = $file->getClientOriginalName();
-    //     $path = "{$bucket->storage_path}/$filename";
-
-    //     Storage::put($path, file_get_contents($file));
-
-    //     $object = ObjectStorage::create([
-    //         'bucket_id' => $bucket->id,
-    //         'key' => $filename,
-    //         'path' => $path,
-    //         'visibility' => $request->visibility ?? 'private',
-    //     ]);
-
-    //     return response()->json(['message' => 'File uploaded', 'object' => $object]);
-    // }
-
-    // Generate Signed URL
-    // public function generateSignedUrl(Request $request, $filename)
-    // {
-    //     $bucket = $request->bucket;
-    //     $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->firstOrFail();
-
-    //     if ($object->visibility === 'public') {
-    //         return response()->json(['url' => Storage::url($object->path)]);
-    //     }
-
-    //     $expTime = $request->input('expTime', 10);
-    //     $expiresAt = Carbon::now()->addMinutes($expTime); // URL Expire 10 Menit
-    //     $signedUrl = Storage::temporaryUrl($object->path, $expiresAt);
-
-    //     return response()->json(['signed_url' => $signedUrl]);
-    // }
-
+    /**
+     * @OA\Get(
+     *     path="/api/signed-url/{filename}",
+     *     tags={"Storage"},
+     *     summary="Generate a signed URL",
+     *     description="Generates a signed URL for accessing a file, with an expiration time.",
+     *     @OA\Parameter(
+     *         name="filename",
+     *         in="path",
+     *         required=true,
+     *         description="Filename to generate signed URL for",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Signed URL generated",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="signed_url", type="string"),
+     *             @OA\Property(property="expires_in", type="string", example="10 minutes")
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="File not found")
+     * )
+     */
     public function generateSignedUrl(Request $request, $filename)
     {
-        // dd($filename);
         $bucket = $request->bucket;
         $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->first();
 
@@ -128,8 +184,7 @@ class StorageController extends Controller
         }
 
         if ($object->visibility === 'public') {
-            // dd($object->path);
-            return response()->json(['url' => url("", [
+            return response()->json(['url' => url("/storage", [
                 'bucket' => $bucket->name,
                 'filename' => $filename
             ])]);
@@ -141,42 +196,35 @@ class StorageController extends Controller
         $secretKey = env('SIGNED_URL_SECRET', 'default_secret_key');
         $signature = hash_hmac('sha256', "{$filename}:{$expiresAt}", $secretKey);
 
-        $signedUrl = url("/{$bucket->name}/{$filename}") .
+        $signedUrl = url("/storage/{$bucket->name}/{$filename}") .
             "?expires={$expiresAt}&signature={$signature}";
 
         return response()->json(['signed_url' => $signedUrl, 'expires_in' => $expTime . ' minutes']);
     }
 
-    public function accessSignedUrl(Request $request, $bucketId, $filename)
-    {
-        $expiresAt = $request->query('expires');
-        $signature = $request->query('signature');
-
-        $object = ObjectStorage::where('bucket_id', $bucketId)->where('key', $filename)->first();
-
-        if (!$expiresAt || !$signature) {
-            return response()->json(['error' => 'Invalid signed URL'], 400);
-        }
-
-        if (Carbon::now()->timestamp > $expiresAt) {
-            return response()->json(['error' => 'Signed URL expired'], 403);
-        }
-
-        $secretKey = env('SIGNED_URL_SECRET', 'default_secret_key');
-        $expectedSignature = hash_hmac('sha256', "{$filename}:{$expiresAt}", $secretKey);
-
-        if (!hash_equals($expectedSignature, $signature)) {
-            return response()->json(['error' => 'Invalid signature'], 403);
-        }
-
-        if (!$object) {
-            return response()->json(['error' => 'File not found'], 404);
-        }
-
-        return response(Storage::get($object->path))->header('Content-Type', 'file');
-    }
-
-    // Set File Visibility (Public/Private)
+    /**
+     * @OA\Post(
+     *     path="/api/visibility/{filename}",
+     *     tags={"Storage"},
+     *     summary="Set file visibility",
+     *     description="Updates the visibility of a file to public or private.",
+     *     @OA\Parameter(
+     *         name="filename",
+     *         in="path",
+     *         required=true,
+     *         description="Filename to update visibility",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             @OA\Property(property="visibility", type="string", enum={"public", "private"}, example="public")
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Visibility updated successfully"),
+     *     @OA\Response(response=404, description="File not found")
+     * )
+     */
     public function setVisibility(Request $request, $filename)
     {
         $request->validate(['visibility' => 'required|in:public,private']);
@@ -190,7 +238,23 @@ class StorageController extends Controller
         return response()->json(['message' => 'Visibility updated']);
     }
 
-    // Download File
+    /**
+     * @OA\Get(
+     *     path="/api/download/{filename}",
+     *     tags={"Storage"},
+     *     summary="Download a file",
+     *     description="Allows downloading of a stored file.",
+     *     @OA\Parameter(
+     *         name="filename",
+     *         in="path",
+     *         required=true,
+     *         description="Filename to download",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(response=200, description="File downloaded successfully"),
+     *     @OA\Response(response=404, description="File not found")
+     * )
+     */
     public function downloadFile(Request $request, $filename)
     {
         $bucket = $request->bucket;
@@ -203,29 +267,23 @@ class StorageController extends Controller
         return Storage::download($path);
     }
 
-    public function showFile(Request $request, $bucket, $filename)
-    {
-        $bucket = Bucket::where('name', $bucket)->first();
-        if (!$bucket) {
-            return response()->json(['error' => 'Bucket not found'], 404);
-        }
-        // dd($bucket);
-        $path = "{$bucket->storage_path}/$filename";
-        $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->firstOrFail();
-
-        if (!Storage::exists($path)) {
-            return response()->json(['error' => 'File not found'], 404);
-        }
-
-        if ($object->visibility == 'private') {
-            // return response()->json(['error' => 'File not found'], 404);
-            return $this->accessSignedUrl($request, $bucket->id, $filename);
-        }
-
-        return response(Storage::get($path))->header('Content-Type', 'file');
-    }
-
-    // Hapus File
+    /**
+     * @OA\Delete(
+     *     path="/api/delete/{filename}",
+     *     tags={"Storage"},
+     *     summary="Delete a file",
+     *     description="Deletes a file permanently.",
+     *     @OA\Parameter(
+     *         name="filename",
+     *         in="path",
+     *         required=true,
+     *         description="Filename to delete",
+     *         @OA\Schema(type="string")
+     *     ),
+     *     @OA\Response(response=200, description="File deleted successfully"),
+     *     @OA\Response(response=404, description="File not found")
+     * )
+     */
     public function hardDeleteFile(Request $request, $filename)
     {
         $bucket = $request->bucket;
@@ -239,14 +297,51 @@ class StorageController extends Controller
         return response()->json(['message' => 'File deleted']);
     }
 
-    public function softDeleteFile(Request $request)
+    /**
+     * @OA\Post(
+     *     path="/api/storage/soft-delete/{filename}",
+     *     tags={"Storage"},
+     *     summary="Soft delete a file",
+     *     description="Marks a file as deleted without permanently removing it. If versioning is enabled, a delete marker is used; otherwise, the file is removed.",
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"bucket", "filename"},
+     *             @OA\Property(property="bucket", type="string", example="my-bucket"),
+     *             @OA\Property(property="filename", type="string", example="document.pdf")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="File deleted",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="message", type="string", example="File deleted")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=404,
+     *         description="File not found",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string", example="File not found")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=403,
+     *         description="File is locked and cannot be deleted",
+     *         @OA\JsonContent(
+     *             @OA\Property(property="error", type="string", example="File is locked and cannot be deleted")
+     *         )
+     *     )
+     * )
+     */
+    public function softDeleteFile(Request $request, $filename)
     {
         $bucket = $request->bucket;
-        $filename = $request->filename;
+        $filename = $request->filename ?? $filename;
 
         $object = ObjectStorage::where('bucket_id', $bucket->id)
             ->where('key', $filename)
-            ->orderByDesc('created_at') // Ambil versi terbaru
+            ->orderByDesc('created_at')
             ->first();
 
         if (!$object) {
