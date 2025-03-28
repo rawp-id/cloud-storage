@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('buckets', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('name')->unique();
             $table->string('storage_path'); // Path penyimpanan
             $table->string('access_key')->unique(); // ID Key

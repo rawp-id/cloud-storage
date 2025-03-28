@@ -45,4 +45,9 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    public function buckets()
+    {
+        return $this->hasMany(Bucket::class);
+    }
 }
