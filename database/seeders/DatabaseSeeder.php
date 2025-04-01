@@ -21,11 +21,20 @@ class DatabaseSeeder extends Seeder
         //     'email' => 'test@example.com',
         // ]);
 
+        $user = User::create([
+            'name' => 'admin',
+            'email' => 'admin@admin',
+            'password' => bcrypt('password'),
+            'access_key' => 'admin',
+            'secret_key' => 'admin',
+        ]);
+
         Bucket::create([
+            'user_id' => $user->id,
             'name' => 'bucket',
             'storage_path' => 'storage/bucket',
-            'access_key' => 'accesskey1',
-            'secret_key' => 'secretkey1',
+            'access_key' => 'accesskey',
+            'secret_key' => 'secretkey',
             'visibility' => 'private',
             'versioning' => false,
             'object_lock' => false,
