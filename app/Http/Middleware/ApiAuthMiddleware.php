@@ -20,31 +20,46 @@ class ApiAuthMiddleware
         $accessKey = $request->header('X-Access-Key');
         $secretKey = $request->header('X-Secret-Key');
 
-        // dd($accessKey, $secretKey);
         if (!$accessKey || !$secretKey) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+            return response()->json(['error' => 'Unauthorized. Missing keys.'], 401);
         }
+
+        // dd($accessKey, $secretKey);
 
         $user = User::where('access_key', $accessKey)
             ->where('secret_key', $secretKey)
-            ->first() ?? null;
+            ->first();
 
-        dd($user);
+        // dd($user);
+        
+        if ($user) {
+            $bucket = $request->input('bucket') ?? $request->query('bucket') ?? $request->header('X-Bucket');
+            if ($bucket) {
+                $bucket = Bucket::where('name', $bucket)
+                    ->where('user_id', $user->id)
+                    ->first();
+
+                if (!$bucket) {
+                    return response()->json(['error' => 'Unauthorized. Invalid bucket.'], 401);
+                }
+            }
+            // Inject ke request
+            // $request->merge(['auth_type' => 'master']);
+            $request->merge(['bucket' => $bucket]);
+            // $request->merge(['user' => $user]);
+            return $next($request);
+        }
 
         $bucket = Bucket::where('access_key', $accessKey)
             ->where('secret_key', $secretKey)
-            ->first() ?? null;
+            ->first();
 
-        if (!$user || !$bucket) {
-            return response()->json(['error' => 'Unauthorized'], 401);
+        if ($bucket) {
+            // $request->merge(['auth_type' => 'bucket']);
+            $request->merge(['bucket' => $bucket]);
+            return $next($request);
         }
 
-        // if (!$bucket) {
-        //     return response()->json(['error' => 'Unauthorized'], 401);
-        // }
-
-        $request->merge(['bucket' => $bucket]);
-        $request->merge(['user' => $user]);
-        return $next($request);
+        return response()->json(['error' => 'Unauthorized. Invalid credentials.'], 401);
     }
 }

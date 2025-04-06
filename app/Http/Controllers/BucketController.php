@@ -49,6 +49,7 @@ class BucketController extends Controller
         ]);
 
         $bucket = Bucket::create([
+            'user_id' => $request->user()->id,
             'name' => $request->name,
             'storage_path' => "storage/{$request->name}",
             'access_key' => Str::random(20),

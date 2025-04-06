@@ -27,6 +27,7 @@ class StorageController extends Controller
         }
 
         $secretKey = env('SIGNED_URL_SECRET', 'default_secret_key');
+        // dd($secretKey);
         $expectedSignature = hash_hmac('sha256', "{$filename}:{$expiresAt}", $secretKey);
 
         if (!hash_equals($expectedSignature, $signature)) {
@@ -99,10 +100,16 @@ class StorageController extends Controller
             $request->validate([
                 'file' => 'required|file',
                 'visibility' => 'in:public,private',
-                'locked_until' => 'integer'
+                'locked_until' => 'integer',
+                'bucket' => 'nullable|exists:buckets,name',
             ]);
 
             $bucket = $request->bucket;
+            $bucket = Bucket::where('name', $bucket)->first();
+            if (!$bucket) {
+                return response()->json(['error' => 'Bucket not found'], 404);
+            }
+
             $filename = $request->file('file')->getClientOriginalName();
             $path = "{$bucket->storage_path}/$filename";
 
@@ -174,9 +181,15 @@ class StorageController extends Controller
      *     @OA\Response(response=404, description="File not found")
      * )
      */
-    public function generateSignedUrl(Request $request, $filename)
+    public function generateSignedUrl(Request $request, $filename = null)
     {
+        $filename = $request->filename ?? $filename ?? $request->input('filename') ?? $request->query('filename') ?? $request->header('filename');
         $bucket = $request->bucket;
+        // $bucket = Bucket::where('name', $bucket)->first();
+        // if (!$bucket) {
+        //     return response()->json(['error' => 'Bucket not found'], 404);
+        // }
+
         $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->first();
 
         if (!$object) {
@@ -190,10 +203,12 @@ class StorageController extends Controller
             ])]);
         }
 
-        $expTime = max(min($request->input('expTime', 10), 60), 1); // Maks 60 menit, Min 1 menit
+        $expTime = (int) max(min($request->input('expTime', 10), 60), 1); // Maks 60 menit, Min 1 menit
+        // dd($expTime);
         $expiresAt = Carbon::now()->addMinutes($expTime)->timestamp;
 
         $secretKey = env('SIGNED_URL_SECRET', 'default_secret_key');
+        // dd($secretKey);
         $signature = hash_hmac('sha256', "{$filename}:{$expiresAt}", $secretKey);
 
         $signedUrl = url("/storage/{$bucket->name}/{$filename}") .
@@ -225,11 +240,28 @@ class StorageController extends Controller
      *     @OA\Response(response=404, description="File not found")
      * )
      */
-    public function setVisibility(Request $request, $filename)
+    public function setVisibility(Request $request, $filename = null)
     {
+        $filename = $request->filename ?? $filename ?? $request->input('filename') ?? $request->query('filename') ?? $request->header('filename');
+        $bucket = $request->bucket;
+        // $bucket = Bucket::where('name', $bucket)->first();
+        // if (!$bucket) {
+        //     return response()->json(['error' => 'Bucket not found'], 404);
+        // }
+
+        // Validasi
+        if (!$filename) {
+            return response()->json(['error' => 'Filename is required'], 400);
+        }
+
         $request->validate(['visibility' => 'required|in:public,private']);
 
-        $bucket = $request->bucket;
+        // $bucket = $request->bucket;
+        // $bucket = Bucket::where('name', $bucket)->first();
+        // if (!$bucket) {
+        //     return response()->json(['error' => 'Bucket not found'], 404);
+        // }
+
         $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->firstOrFail();
 
         $object->visibility = $request->visibility;
@@ -255,9 +287,20 @@ class StorageController extends Controller
      *     @OA\Response(response=404, description="File not found")
      * )
      */
-    public function downloadFile(Request $request, $filename)
+    public function downloadFile(Request $request, $filename = null)
     {
+        $filename = $request->filename ?? $filename ?? $request->input('filename') ?? $request->query('filename') ?? $request->header('filename');
+
+        if (!$filename) {
+            return response()->json(['error' => 'Filename is required'], 400);
+        }
+    
         $bucket = $request->bucket;
+        // $bucket = Bucket::where('name', $bucket)->first();
+        // if (!$bucket) {
+        //     return response()->json(['error' => 'Bucket not found'], 404);
+        // }
+
         $path = "{$bucket->storage_path}/$filename";
 
         if (!Storage::exists($path)) {
@@ -284,9 +327,20 @@ class StorageController extends Controller
      *     @OA\Response(response=404, description="File not found")
      * )
      */
-    public function hardDeleteFile(Request $request, $filename)
+    public function hardDeleteFile(Request $request, $filename = null)
     {
+        $filename = $request->filename ?? $filename ?? $request->input('filename') ?? $request->query('filename') ?? $request->header('filename');
+
+        if (!$filename) {
+            return response()->json(['error' => 'Filename is required'], 400);
+        }
+
         $bucket = $request->bucket;
+        // $bucket = Bucket::where('name', $bucket)->first();
+        // if (!$bucket) {
+        //     return response()->json(['error' => 'Bucket not found'], 404);
+        // }
+
         $path = "{$bucket->storage_path}/$filename";
 
         if (!Storage::exists($path)) {
@@ -334,9 +388,20 @@ class StorageController extends Controller
      *     )
      * )
      */
-    public function softDeleteFile(Request $request, $filename)
+    public function softDeleteFile(Request $request, $filename = null)
     {
+        $filename = $request->filename ?? $filename ?? $request->input('filename') ?? $request->query('filename') ?? $request->header('filename');
+
+        if (!$filename) {
+            return response()->json(['error' => 'Filename is required'], 400);
+        }
+
         $bucket = $request->bucket;
+        // $bucket = Bucket::where('name', $bucket)->first();
+        // if (!$bucket) {
+        //     return response()->json(['error' => 'Bucket not found'], 404);
+        // }
+
         $filename = $request->filename ?? $filename;
 
         $object = ObjectStorage::where('bucket_id', $bucket->id)

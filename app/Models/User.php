@@ -34,6 +34,9 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'created_at',
+        'updated_at',
+        'secret_key',
     ];
 
     /**
@@ -49,15 +52,15 @@ class User extends Authenticatable
         ];
     }
 
-    public static function boot()
-    {
-        parent::boot();
+    // public static function boot()
+    // {
+    //     parent::boot();
 
-        static::creating(function ($user) {
-            $user->access_key = bin2hex(random_bytes(16));
-            $user->secret_key = bin2hex(random_bytes(32));
-        });
-    }
+    //     static::creating(function ($user) {
+    //         $user->access_key = bin2hex(random_bytes(16));
+    //         $user->secret_key = bin2hex(random_bytes(32));
+    //     });
+    // }
 
     public function buckets()
     {
