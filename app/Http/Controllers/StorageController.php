@@ -50,10 +50,13 @@ class StorageController extends Controller
             return response()->json(['error' => 'Bucket not found'], 404);
         }
         // dd($bucket);
-        $path = "{$bucket->storage_path}/$filename";
-        $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->firstOrFail();
+        // $path = "{$bucket->storage_path}/$filename";
+        $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->first();
         
         // dd($object);
+        if(!$object) {
+            return response()->json(['error' => 'File not found'], 404);
+        }
 
         if (!Storage::exists($object->path)) {
             return response()->json(['error' => 'File not found'], 404);
