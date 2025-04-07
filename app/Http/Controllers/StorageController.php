@@ -18,6 +18,8 @@ class StorageController extends Controller
 
         $object = ObjectStorage::where('bucket_id', $bucketId)->where('key', $filename)->first();
 
+        // dd($object);
+
         if (!$expiresAt || !$signature) {
             return response()->json(['error' => 'Invalid signed URL'], 400);
         }
@@ -50,8 +52,10 @@ class StorageController extends Controller
         // dd($bucket);
         $path = "{$bucket->storage_path}/$filename";
         $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->firstOrFail();
+        
+        // dd($object);
 
-        if (!Storage::exists($path)) {
+        if (!Storage::exists($object->path)) {
             return response()->json(['error' => 'File not found'], 404);
         }
 
@@ -60,7 +64,7 @@ class StorageController extends Controller
             return $this->accessSignedUrl($request, $bucket->id, $filename);
         }
 
-        return response(Storage::get($path))->header('Content-Type', 'file');
+        return response(Storage::get($object->path))->header('Content-Type', 'file');
     }
 
     /**
@@ -101,16 +105,20 @@ class StorageController extends Controller
                 'file' => 'required|file',
                 'visibility' => 'in:public,private',
                 'locked_until' => 'integer',
+                // 'key' => 'required|string|unique:objects,key,NULL,id,bucket_id,' . $request->bucket->id,
                 'bucket' => 'nullable|exists:buckets,name',
             ]);
 
             $bucket = $request->bucket;
-            $bucket = Bucket::where('name', $bucket)->first();
-            if (!$bucket) {
-                return response()->json(['error' => 'Bucket not found'], 404);
-            }
+            // dd($bucket);
+            // $bucket = Bucket::where('name', $bucket)->first();
+            // if (!$bucket) {
+            //     return response()->json(['error' => 'Bucket not found'], 404);
+            // }
 
             $filename = $request->file('file')->getClientOriginalName();
+            $baseKey = $filename;
+
             $path = "{$bucket->storage_path}/$filename";
 
             // Cek Object Lock
@@ -127,14 +135,29 @@ class StorageController extends Controller
 
             // Cek Mode Versioning
             if ($bucket->versioning) {
-                $versionId = Str::uuid();
-                $path = "{$bucket->storage_path}/v{$versionId}_{$filename}";
+                // $versionId = Str::uuid();
+                // $path = "{$bucket->storage_path}/v{$versionId}_{$filename}";
+                $versionId = (string) Str::uuid();
+
+                // Ambil version terakhir, lalu tambah 1
+                $lastVersion = ObjectStorage::where('bucket_id', $bucket->id)
+                    ->where('key', $baseKey)->latest()->first();
+
+
+                // dd($lastVersion);
+
+                $versionNumber = $lastVersion ? $lastVersion->version + 1 : 1;
+
+                $lastVersionDelete = $lastVersion ? $lastVersion->delete() : null;
+
+                $filename = "v{$versionNumber}_{$filename}";
+                $path = "{$bucket->storage_path}/{$filename}";
             } else {
                 // Hapus file lama jika versioning tidak aktif
                 Storage::delete($path);
                 ObjectStorage::where('bucket_id', $bucket->id)
                     ->where('key', $filename)
-                    ->delete();
+                    ->forceDelete();
             }
 
             // Simpan file baru
@@ -144,9 +167,10 @@ class StorageController extends Controller
 
             $object = ObjectStorage::create([
                 'bucket_id' => $bucket->id,
-                'key' => $filename,
+                'key' => $baseKey,
                 'path' => $path,
                 'version_id' => $bucket->versioning ? $versionId : null,
+                'version' => $bucket->versioning ? $versionNumber : null,
                 'locked_until' => $bucket->object_lock ? now()->addDays($lockedUntil) : null, // Default 30 hari lock
                 'visibility' => $request->visibility ?? 'private',
             ]);
@@ -294,7 +318,7 @@ class StorageController extends Controller
         if (!$filename) {
             return response()->json(['error' => 'Filename is required'], 400);
         }
-    
+
         $bucket = $request->bucket;
         // $bucket = Bucket::where('name', $bucket)->first();
         // if (!$bucket) {
@@ -402,7 +426,7 @@ class StorageController extends Controller
         //     return response()->json(['error' => 'Bucket not found'], 404);
         // }
 
-        $filename = $request->filename ?? $filename;
+        // $filename = $request->filename ?? $filename;
 
         $object = ObjectStorage::where('bucket_id', $bucket->id)
             ->where('key', $filename)

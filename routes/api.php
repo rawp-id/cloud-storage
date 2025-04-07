@@ -24,6 +24,7 @@ Route::middleware('apiauth')->group(function () {
     Route::delete('/delete/{filename}', [StorageController::class, 'hardDeleteFile']);
     Route::get('/signed-url', [StorageController::class, 'generateSignedUrl']);
     Route::get('/signed-url/{filename}', [StorageController::class, 'generateSignedUrl']);
+    Route::patch('/visibility', [StorageController::class, 'setVisibility']);
     Route::patch('/visibility/{filename}', [StorageController::class, 'setVisibility']);
     Route::post('/storage/soft-delete/{filename}', [StorageController::class, 'softDeleteFile']);
 });

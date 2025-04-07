@@ -36,7 +36,7 @@ class DatabaseSeeder extends Seeder
             'access_key' => 'accesskey',
             'secret_key' => 'secretkey',
             'visibility' => 'private',
-            'versioning' => false,
+            'versioning' => true,
             'object_lock' => false,
         ]);
     }

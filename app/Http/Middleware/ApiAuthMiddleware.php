@@ -33,7 +33,7 @@ class ApiAuthMiddleware
         // dd($user);
         
         if ($user) {
-            $bucket = $request->input('bucket') ?? $request->query('bucket') ?? $request->header('X-Bucket');
+            $bucket = $request->bucket ?? $request->input('bucket') ?? $request->query('bucket') ?? $request->header('X-Bucket');
             if ($bucket) {
                 $bucket = Bucket::where('name', $bucket)
                     ->where('user_id', $user->id)

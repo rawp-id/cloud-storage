@@ -19,6 +19,8 @@ return new class extends Migration {
             $table->timestamp('locked_until')->nullable(); // Object Lock
             $table->softDeletes();
             $table->timestamps();
+
+            // $table->unique(['bucket_id', 'key']);
         });
     }
 
