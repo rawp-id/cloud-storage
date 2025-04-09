@@ -109,7 +109,7 @@ class StorageController extends Controller
                 'visibility' => 'in:public,private',
                 'locked_until' => 'integer',
                 // 'key' => 'required|string|unique:objects,key,NULL,id,bucket_id,' . $request->bucket->id,
-                'bucket' => 'nullable|exists:buckets,name',
+                // 'bucket' => 'nullable|exists:buckets,name',
             ]);
 
             $bucket = $request->bucket;
