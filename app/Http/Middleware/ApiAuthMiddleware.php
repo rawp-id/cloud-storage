@@ -20,6 +20,8 @@ class ApiAuthMiddleware
         $accessKey = $request->header('X-Access-Key');
         $secretKey = $request->header('X-Secret-Key');
 
+        // dd($accessKey, $secretKey);
+
         if (!$accessKey || !$secretKey) {
             return response()->json(['error' => 'Unauthorized. Missing keys.'], 401);
         }
@@ -44,9 +46,9 @@ class ApiAuthMiddleware
                 }
             }
             // Inject ke request
-            // $request->merge(['auth_type' => 'master']);
+            $request->merge(['auth_type' => 'master']);
             $request->merge(['bucket' => $bucket]);
-            // $request->merge(['user' => $user]);
+            $request->merge(['user' => $user]);
             return $next($request);
         }
 
@@ -55,7 +57,7 @@ class ApiAuthMiddleware
             ->first();
 
         if ($bucket) {
-            // $request->merge(['auth_type' => 'bucket']);
+            $request->merge(['auth_type' => 'bucket']);
             $request->merge(['bucket' => $bucket]);
             return $next($request);
         }

@@ -48,6 +48,8 @@ class BucketController extends Controller
             'object_lock' => 'boolean'
         ]);
 
+        // dd($request->all());
+
         $bucket = Bucket::create([
             'user_id' => $request->user->id,
             'name' => $request->name,
@@ -85,8 +87,15 @@ class BucketController extends Controller
      *     )
      * )
      */
-    public function listBuckets()
+    public function listBuckets(Request $request)
     {
-        return response()->json(Bucket::all());
+        $bucket = Bucket::where('user_id', $request->user->id)->get();
+        if ($bucket->isEmpty()) {
+            return response()->json(['message' => 'No buckets found'], 404);
+        }
+        return response()->json([
+            'message' => 'Buckets retrieved successfully',
+            'buckets' => $bucket
+        ]);
     }
 }

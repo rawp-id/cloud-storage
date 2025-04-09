@@ -13,12 +13,12 @@ Route::get('/user', function (Request $request) {
 Route::post('register', [AuthController::class, 'register']);
 
 // Manajemen Bucket
-Route::post('/bucket', [BucketController::class, 'createBucket']);
-Route::get('/buckets', [BucketController::class, 'listBuckets']);
 
 
 // Manajemen File (dengan Middleware Keamanan)
 Route::middleware('apiauth')->group(function () {
+    Route::post('/bucket', [BucketController::class, 'createBucket']);
+    Route::get('/buckets', [BucketController::class, 'listBuckets']);
     Route::post('/upload', [StorageController::class, 'uploadFile']);
     Route::get('/download/{filename}', [StorageController::class, 'downloadFile']);
     Route::delete('/delete/{filename}', [StorageController::class, 'hardDeleteFile']);
