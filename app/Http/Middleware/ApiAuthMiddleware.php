@@ -32,8 +32,12 @@ class ApiAuthMiddleware
             ->where('secret_key', $secretKey)
             ->first();
 
+        $bucket = Bucket::where('access_key', $accessKey)
+            ->where('secret_key', $secretKey)
+            ->first();
+
         // dd($user);
-        
+
         if ($user) {
             $bucket = $request->bucket ?? $request->input('bucket') ?? $request->query('bucket') ?? $request->header('X-Bucket');
             if ($bucket) {
@@ -50,13 +54,7 @@ class ApiAuthMiddleware
             $request->merge(['bucket' => $bucket]);
             $request->merge(['user' => $user]);
             return $next($request);
-        }
-
-        $bucket = Bucket::where('access_key', $accessKey)
-            ->where('secret_key', $secretKey)
-            ->first();
-
-        if ($bucket) {
+        } else if ($bucket) {
             $request->merge(['auth_type' => 'bucket']);
             $request->merge(['bucket' => $bucket]);
             return $next($request);
