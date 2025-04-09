@@ -98,4 +98,52 @@ class BucketController extends Controller
             'buckets' => $bucket
         ]);
     }
+
+    public function deleteBucket(Request $request, $id)
+    {
+        $bucket = Bucket::find($id);
+        if (!$bucket) {
+            return response()->json(['message' => 'Bucket not found'], 404);
+        }
+
+        $bucket->delete();
+
+        return response()->json(['message' => 'Bucket deleted successfully']);
+    }
+    public function updateBucket(Request $request, $id)
+    {
+        $bucket = Bucket::find($id);
+        if (!$bucket) {
+            return response()->json(['message' => 'Bucket not found'], 404);
+        }
+
+        $request->validate([
+            'name' => 'required|unique:buckets,name,' . $bucket->id,
+            'visibility' => 'in:public,private',
+            'versioning' => 'boolean',
+            'object_lock' => 'boolean'
+        ]);
+
+        $bucket->update($request->all());
+
+        return response()->json(['message' => 'Bucket updated successfully']);
+    }
+    public function getBucket(Request $request, $id)
+    {
+        $bucket = Bucket::find($id);
+        if (!$bucket) {
+            return response()->json(['message' => 'Bucket not found'], 404);
+        }
+
+        return response()->json(['bucket' => $bucket]);
+    }
+    public function getBucketByName(Request $request, $name)
+    {
+        $bucket = Bucket::where('name', $name)->first();
+        if (!$bucket) {
+            return response()->json(['message' => 'Bucket not found'], 404);
+        }
+
+        return response()->json(['bucket' => $bucket]);
+    }
 }

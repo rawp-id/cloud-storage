@@ -19,6 +19,9 @@ Route::post('register', [AuthController::class, 'register']);
 Route::middleware('apiauth')->group(function () {
     Route::post('/bucket', [BucketController::class, 'createBucket']);
     Route::get('/buckets', [BucketController::class, 'listBuckets']);
+    Route::get('/buckets/{bucket}', [BucketController::class, 'getBucket']);
+    Route::put('/buckets/{bucket}', [BucketController::class, 'updateBucket']);
+    Route::delete('/buckets/{bucket}', [BucketController::class, 'deleteBucket']);
     Route::post('/upload', [StorageController::class, 'uploadFile']);
     Route::get('/download/{filename}', [StorageController::class, 'downloadFile']);
     Route::delete('/delete/{filename}', [StorageController::class, 'hardDeleteFile']);
