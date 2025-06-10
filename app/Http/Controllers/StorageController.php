@@ -52,9 +52,9 @@ class StorageController extends Controller
         // dd($bucket);
         // $path = "{$bucket->storage_path}/$filename";
         $object = ObjectStorage::where('bucket_id', $bucket->id)->where('key', $filename)->first();
-        
+
         // dd($object);
-        if(!$object) {
+        if (!$object) {
             return response()->json(['error' => 'File not found'], 404);
         }
 
@@ -224,10 +224,12 @@ class StorageController extends Controller
         }
 
         if ($object->visibility === 'public') {
-            return response()->json(['url' => url("/storage", [
-                'bucket' => $bucket->name,
-                'filename' => $filename
-            ])]);
+            return response()->json([
+                'url' => url("/storage", [
+                    'bucket' => $bucket->name,
+                    'filename' => $filename
+                ])
+            ]);
         }
 
         $expTime = (int) max(min($request->input('expTime', 10), 60), 1); // Maks 60 menit, Min 1 menit
@@ -363,20 +365,54 @@ class StorageController extends Controller
         }
 
         $bucket = $request->bucket;
-        // $bucket = Bucket::where('name', $bucket)->first();
-        // if (!$bucket) {
-        //     return response()->json(['error' => 'Bucket not found'], 404);
-        // }
 
-        $path = "{$bucket->storage_path}/$filename";
+        // Ambil semua object dengan key = $filename (baseKey), termasuk versi-versinya
+        $objects = ObjectStorage::where('bucket_id', $bucket->id)
+            ->where('key', $filename)
+            ->get();
 
-        if (!Storage::exists($path)) {
+        if ($objects->isEmpty()) {
             return response()->json(['error' => 'File not found'], 404);
         }
 
-        Storage::delete($path);
-        return response()->json(['message' => 'File deleted']);
+        // Hapus semua file fisik
+        foreach ($objects as $object) {
+            if (Storage::exists($object->path)) {
+                Storage::delete($object->path);
+            }
+        }
+
+        // Hapus semua record database
+        ObjectStorage::where('bucket_id', $bucket->id)
+            ->where('key', $filename)
+            ->forceDelete();
+
+        return response()->json(['message' => 'File and all versions deleted']);
     }
+
+    // public function hardDeleteFile(Request $request, $filename = null)
+    // {
+    //     $filename = $request->filename ?? $filename ?? $request->input('filename') ?? $request->query('filename') ?? $request->header('filename');
+
+    //     if (!$filename) {
+    //         return response()->json(['error' => 'Filename is required'], 400);
+    //     }
+
+    //     $bucket = $request->bucket;
+    //     // $bucket = Bucket::where('name', $bucket)->first();
+    //     // if (!$bucket) {
+    //     //     return response()->json(['error' => 'Bucket not found'], 404);
+    //     // }
+
+    //     $path = "{$bucket->storage_path}/$filename";
+
+    //     if (!Storage::exists($path)) {
+    //         return response()->json(['error' => 'File not found'], 404);
+    //     }
+
+    //     Storage::delete($path);
+    //     return response()->json(['message' => 'File deleted']);
+    // }
 
     /**
      * @OA\Post(
